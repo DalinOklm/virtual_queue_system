@@ -498,7 +498,7 @@ export default function CreateStorePage() {
     if (storeData.queueLength !== undefined && storeData.servingRate !== undefined) {
       setStoreData((prev) => ({
         ...prev,
-        estimatedWait: Math.ceil((storeData.queueLength * storeData.servingRate) / 3),
+        estimatedWait: Math.ceil((Number(storeData.queueLength) * Number(storeData.servingRate)) / 3),
       }))
     }
   }, [storeData.queueLength, storeData.servingRate])
@@ -548,7 +548,7 @@ export default function CreateStorePage() {
     return Object.keys(errors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -584,52 +584,27 @@ export default function CreateStorePage() {
       menuItems: storeData.menuItems || [],
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      // Get existing stores from localStorage
-      const existingStoresJson = localStorage.getItem("customStores")
-      const existingStores = existingStoresJson ? JSON.parse(existingStoresJson) : []
+      const response = await fetch("/api/store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: storeData.name,
+        type: storeData.type,
+        description: storeData.description,
+        color: storeData.color,
+        openTime: storeData.openTime,
+        closeTime: storeData.closeTime,
+        ownerId: "REPLACE_WITH_LOGGED_IN_USER_ID",
+      }),
+    })
 
-      // Add new store
-      const updatedStores = [...existingStores, newStore]
+    const result = await response.json()
 
-      // Save to localStorage
-      localStorage.setItem("customStores", JSON.stringify(updatedStores))
-
+    if (!response.ok) {
+      toast({ title: "Error", description: result.error || "Failed to create store", variant: "destructive" })
       setIsSubmitting(false)
-      setFormSubmitted(true)
-
-      // Show success toast
-      toast({
-        title: "Store Created",
-        description: "Your store has been successfully created",
-        variant: "default",
-      })
-
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormSubmitted(false)
-        setStoreData({
-          name: "",
-          type: "drinks",
-          description: "",
-          servingRate: 5,
-          color: "teal",
-          address: "",
-          openTime: "9:00 AM",
-          closeTime: "5:00 PM",
-          popularity: 7,
-          queueLength: 0,
-          estimatedWait: 0,
-          lastUpdated: Date.now(),
-          activity: [],
-          serviceEfficiency: 1.0,
-          selectedIconName: "cocktail",
-          menuItems: [],
-        })
-        setActiveTab("basic")
-      }, 2000)
-    }, 1500)
+      return
+    }
   }
 
   const goToNextTab = () => {
@@ -736,7 +711,9 @@ export default function CreateStorePage() {
       // Update existing item
       setStoreData((prev) => {
         const updatedMenuItems = [...(prev.menuItems || [])]
+        if (isEditingMenuItem && currentMenuItem?.index !== undefined) {
         updatedMenuItems[currentMenuItem.index] = newMenuItem
+        }
         return { ...prev, menuItems: updatedMenuItems }
       })
     } else {

@@ -972,29 +972,38 @@ export default function LoginPage() {
   const animatingServices = useRef<Set<string>>(new Set())
 
   // Load custom stores from localStorage
-  useEffect(() => {
-    const customStoresJson = localStorage.getItem("customStores")
-    if (customStoresJson) {
-      try {
-        const customStores = JSON.parse(customStoresJson)
-        // Ensure icon is properly set for each custom store
-        const processedCustomStores = customStores.map((store: any) => {
-          // Convert icon from string to React element if needed
-          if (typeof store.icon === "string" || !store.icon) {
-            return {
-              ...store,
-              icon: getIconComponent(store.type),
-            }
-          }
-          return store
-        })
+ useEffect(() => {
+  const fetchStores = async () => {
+    try {
+      const response = await fetch("/api/store");
+      console.log("Raw response:", response);
+      const dbStores = await response.json();
+      console.log("Parsed JSON:", dbStores);
 
-        setServiceLocations([...initialServiceLocations, ...processedCustomStores])
-      } catch (e) {
-        console.error("Failed to parse custom stores", e)
-      }
+      const processedDbStores = dbStores.stores.map((store: any) => ({
+        ...store,
+        queueLength: store.queueLength || 0,
+        servingRate: store.servingRate || 5,
+        estimatedWait: store.estimatedWait || 0,
+        popularity: store.popularity || 7,
+        lastUpdated: Date.now(),
+        activity: [],
+        serviceEfficiency: 1.0,
+        icon: getIconComponent(store.type || "other"),
+      }));
+
+      setServiceLocations([
+        ...initialServiceLocations, // hardcoded data
+        ...processedDbStores,      // fetched from DB
+      ]);
+    } catch (err) {
+      console.error("Failed to load store data:", err);
     }
-  }, [])
+  };
+
+  fetchStores();
+}, []);
+
 
   // Animate liquid level
   useEffect(() => {
